@@ -274,60 +274,9 @@ define([
         };
         updateScreenBoxForObj(this.sceneObject);
       },
-            
-            
-        csgToMesh: function(csg) {
-            var geometry = new THREE.Geometry();
-            var indices = [];
-          var box3 = new THREE.Box3();
 
-          var workplaneAxis = calc.objToVector(
-              this.model.vertex.workplane.axis,
-              geometryGraph,
-              THREE.Vector3);
-          var workplaneAngle = geometryGraph.evaluate(this.model.vertex.workplane.angle);
-          var workplaneOrigin = calc.objToVector(
-              this.model.vertex.workplane.origin,
-              geometryGraph,
-              THREE.Vector3);
 
-          csg.polygons.forEach(function(polygon) {
-
-              var polygonIndices = polygon.vertices.map(function(v) {
-                  var vertex = new THREE.Vector3(v.pos.x, v.pos.y, v.pos.z);
-
-                  var localVertex = vertex.clone();
-                  localVertex.sub(workplaneOrigin);
-                  localVertex = calc.rotateAroundAxis(localVertex, workplaneAxis, -workplaneAngle);
-                  box3.expandByPoint(localVertex);
-
-                  return geometry.vertices.push(vertex) - 1;
-              });
-
-              if (polygonIndices.length === 3) {
-                  geometry.faces.push(new THREE.Face3(polygonIndices[0], polygonIndices[1], polygonIndices[2]));
-              } 
-              else if (polygonIndices.length === 4) {
-                  geometry.faces.push(new THREE.Face4(polygonIndices[0], polygonIndices[1], polygonIndices[2], polygonIndices[3]));
-              }
-              else {
-                  throw new Error('unsupported number of vertices');
-              }
-              indices.push(polygonIndices);
-
-          }, this);
-
-          geometry.computeFaceNormals();
-          return {
-              geometry: geometry,
-              indices: indices,
-              box3: box3,
-          };
-      },
-            
-            
-            
-      polygonsToMesh: function(polygons) {
+      csgToMesh: function(csg) {
         var geometry = new THREE.Geometry();
         var indices = [];
         var box3 = new THREE.Box3();
@@ -342,57 +291,31 @@ define([
               geometryGraph, 
               THREE.Vector3);
 
-        polygons.forEach(function(problematicCoordinates) {
+        csg.polygons.forEach(function(polygon) {
 
-          // Remove degenerates
-          var eps = 0.001;
-          var coordinates = problematicCoordinates.reduce(function(acc, c, j) {
-            if (j === 0) {
-              return acc.concat(c);
-            } else {
-              var l = new THREE.Vector3().subVectors(c,acc[acc.length-1]).length();
-              if (l > eps) {
-                return acc.concat(c);
-              } else {
-                return acc;
-              }
-            }
-          }, []);
-          if (new THREE.Vector3().subVectors(
-              coordinates[0],
-              coordinates[coordinates.length-1]).length() <= eps) {
-            coordinates = coordinates.slice(1);
-          }
+          var polygonIndices = polygon.vertices.map(function(v) {
+            var vertex = new THREE.Vector3(v.pos.x, v.pos.y, v.pos.z);
 
-          
-          if (coordinates.length < 3) {
-            // Ignore degenerates
-            // console.warn('invalid polygon');
+            var localVertex = vertex.clone();
+            localVertex.sub(workplaneOrigin);
+            localVertex = calc.rotateAroundAxis(localVertex, workplaneAxis, -workplaneAngle);
+            box3.expandByPoint(localVertex);
+
+            return geometry.vertices.push(vertex) - 1;
+          });
+
+          if (polygonIndices.length === 3) {
+            geometry.faces.push(new THREE.Face3(polygonIndices[0], polygonIndices[1], polygonIndices[2]));
+          } else if (polygonIndices.length === 4) {
+            geometry.faces.push(new THREE.Face4(polygonIndices[0], polygonIndices[1], polygonIndices[2], polygonIndices[3]));
           } else {
-            var polygonIndices = coordinates.map(function(coordinate) {
-              var vertex = new THREE.Vector3(coordinate.x, coordinate.y, coordinate.z);
-
-              var localVertex = vertex.clone();
-              localVertex.sub(workplaneOrigin);
-              localVertex = calc.rotateAroundAxis(localVertex, workplaneAxis, -workplaneAngle);
-              box3.expandByPoint(localVertex);
-
-              return geometry.vertices.push(vertex) - 1;
-            });
-
-            if (coordinates.length === 3) {
-              geometry.faces.push(new THREE.Face3(polygonIndices[0],polygonIndices[1],polygonIndices[2]));
-            } else if (coordinates.length === 4) {
-              geometry.faces.push(new THREE.Face4(polygonIndices[0],polygonIndices[1],polygonIndices[2],polygonIndices[3]));
-            } else {
-              // Only support convex polygons
-              geometry.faces.push(new THREE.Face3(polygonIndices[0],polygonIndices[1],polygonIndices[2]));
-              for (var j = 2; j < coordinates.length -1; ++j) {
-                geometry.faces.push(new THREE.Face3(polygonIndices[0], polygonIndices[0]+j,polygonIndices[0]+j+1));
-              }
+            // Only support convex polygons
+            geometry.faces.push(new THREE.Face3(polygonIndices[0],polygonIndices[1],polygonIndices[2]));
+            for (var j = 2; j < polygonIndices.length -1; ++j) {
+              geometry.faces.push(new THREE.Face3(polygonIndices[0], polygonIndices[0]+j,polygonIndices[0]+j+1));
             }
-            indices.push(polygonIndices);
           }
+          indices.push(polygonIndices);
           
         }, this);
 
@@ -491,13 +414,12 @@ define([
       renderMesh: function(result) {
         if (this.model.inContext) {
           this.clear();
-            var toMesh;
-            if (result.csg) {
-                toMesh = this.csgToMesh(result.csg);
-            }
-            else {
-                toMesh = this.polygonsToMesh(result.polygons);
-            }
+          var toMesh;
+          if (result.csg) {
+            toMesh = this.csgToMesh(result.csg);
+          } else {
+            toMesh = this.polygonsToMesh(result.polygons);
+          }
 
           this.extents = {
             center: toMesh.box3.center(),
