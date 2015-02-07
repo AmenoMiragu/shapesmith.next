@@ -54,7 +54,7 @@ define([
             var jobResult = {
               serializedBSP: evt.data.bsp,
               polygons: evt.data.polygons,
-                csg: evt.data.csg,
+              csg: evt.data.csg,
             };
             broker.trigger(evt.data.id, jobResult);
 
