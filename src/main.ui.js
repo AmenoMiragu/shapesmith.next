@@ -4,6 +4,8 @@ requirejs.config({
     'underscore': '../node_modules/underscore/underscore',
     'backbone-events': '../node_modules/backbone-events/lib/backbone-events',
     'backbone': '../node_modules/backbone/backbone',
+    'lathe': '../node_modules/lathe/lib',
+    'gl-matrix': '../node_modules/lathe/node_modules/gl-matrix/dist/gl-matrix',
   },
   shim: {
     'underscore': {
